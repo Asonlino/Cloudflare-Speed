@@ -23,7 +23,6 @@
 ## 📸 截图 (Screenshot)
 
 ![App Screenshot](assets/screenshot.jpg)
-*(请在此处替换为你实际的运行截图)*
 
 ## 🚀 快速部署 (Quick Start)
 
