@@ -48,7 +48,70 @@ export default {
     }
 
     // ==========================================
-    // 2. 前端 UI 接口
+    // 2. 代理接口 (绕过 CORS)
+    // ==========================================
+    if (url.pathname === '/speed/proxy') {
+      // 处理 OPTIONS 预检请求
+      if (request.method === 'OPTIONS') {
+        return new Response(null, {
+          status: 204,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+            'Access-Control-Allow-Headers': 'Range',
+            'Access-Control-Max-Age': '86400'
+          }
+        });
+      }
+      
+      const targetUrl = url.searchParams.get('url');
+      if (!targetUrl) {
+        return new Response("Missing url parameter", { 
+          status: 400,
+          headers: { "Access-Control-Allow-Origin": "*" }
+        });
+      }
+      
+      try {
+        const decodedUrl = decodeURIComponent(targetUrl);
+        
+        // 构建代理请求，只转发必要的头部
+        const proxyHeaders = new Headers();
+        const rangeHeader = request.headers.get('range');
+        if (rangeHeader) {
+          proxyHeaders.set('Range', rangeHeader);
+        }
+        
+        const proxyRequest = new Request(decodedUrl, {
+          method: request.method,
+          headers: proxyHeaders,
+          redirect: 'follow'
+        });
+        
+        const response = await fetch(proxyRequest);
+        
+        // 创建新的响应，添加 CORS 头
+        const newHeaders = new Headers(response.headers);
+        newHeaders.set('Access-Control-Allow-Origin', '*');
+        newHeaders.set('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+        newHeaders.set('Access-Control-Allow-Headers', 'Range');
+        newHeaders.set('Access-Control-Expose-Headers', 'Content-Range, Content-Length, Accept-Ranges');
+        
+        return new Response(response.body, {
+          status: response.status,
+          statusText: response.statusText,
+          headers: newHeaders
+        });
+      } catch (e) {
+        return new Response("Proxy error: " + e.message, { 
+          status: 500,
+          headers: { "Access-Control-Allow-Origin": "*" }
+        });
+      }
+    }
+
+    // ==========================================
+    // 3. 前端 UI 接口
     // ==========================================
     if (url.pathname === '/speed') {
       return new Response(htmlUI(url.origin), {
@@ -192,29 +255,24 @@ function htmlUI(origin) {
       { c: "CDN", p: "Cachefly", s: "Global", u: "https://cachefly.cachefly.net/100mb.test" },
 
       // 2. 亚洲 - 中国
-      { c: "China", p: "China Mobile", s: "Migu", u: "https://d.musicapp.migu.cn/prod/file-service/file-down/8578746d5066a9d59af905eb0939b4b1/4b9015f6b2164327a3d3c78864016666.apk" },
-      { c: "China", p: "China Telecom", s: "Tianyi Cloud", u: "https://desk-download.cloud.189.cn/download/exe/20241224/CTCloudDisk_Setup_8.0.2_20241224163953.exe" },
-      { c: "China", p: "China Unicom", s: "", u: "https://img.sj.ol-img.com/download/10010/10010_new_8.0.0.apk" },
-      { c: "China", p: "Alibaba", s: "CDN", u: "https://vkceyugu.cdn.bspapp.com/VKCEYUGU-36594a99-2093-463a-a759-52fb6b72da91/5a00630f-754b-4236-9011-3d484047641e.bin" },
-      { c: "China", p: "Tencent", s: "WeGame", u: "https://wegame.gtimg.com/g.55555-r.26ca4/wegame-home/sc02-00.5.5.5.5.7.9.0.5.3.6.1.1.8.6.0.4.exe" },
-      { c: "China", p: "Netease", s: "", u: "https://n.netease.com/download/n_setup_official.exe" },
-      { c: "China", p: "Bilibili", s: "CDN", u: "https://s1.hdslb.com/bfs/static/game-web/duang/7.0.0/duang-7.0.0.zip.001" },
-      { c: "China", p: "ByteDance", s: "Douyin", u: "https://lf9-apk.douyin.com/package/apk/com.ss.android.ugc.aweme/290601/douyin_29.6.0_douyin_update_8735_v290601_80ed.apk" },
-      { c: "China", p: "Huawei", s: "Cloud", u: "https://hwid1.vmall.com/CAS/static/js/jquery.min.js?size=50MB" }, 
+      { c: "China", p: "China Mobile", s: "Migu", u: "https://gcache.migu.cn/prod/upload/game_resource/channel_for_homepage_game2/202408/2909/59/20240829095855985_mgwebp1.jpg" },
+      { c: "China", p: "China Telecom", s: "Tianyi Cloud", u: "https://static.e.189.cn/open/login/page/web/v5.0/static/js/captch.min.js?v1.1" },
+      { c: "China", p: "China Unicom", s: "", u: "https://img.client.10010.com/dwguide/js/chunk-3bcf6a65.6528471b.js" },
+      { c: "China", p: "Alibaba", s: "CDN", u: "https://img.alicdn.com/imgextra/i2/O1CN01bYc1m81RrcSAyOjMu_!!6000000002165-54-tps-60-60.apng" },
+      { c: "China", p: "Tencent", s: "WeGame", u: "https://wegame.gtimg.com/g.55555-r.c4663/wegame-home/wegame-h5-share.f036f35a.jpg" },
+      { c: "China", p: "Netease", s: "", u: "https://nie.res.netease.com/comm/NIE_copyRight/images/netease.2.png" },
+      { c: "China", p: "Bilibili", s: "CDN", u: "https://i0.hdslb.com/bfs/static/jinkela/long/images/favicon.ico" },
+      { c: "China", p: "ByteDance", s: "Douyin", u: "https://p-pc-weboff.byteimg.com/tos-cn-i-9r5gewecjs/avatar-dark.png" },
+      { c: "China", p: "Huawei", s: "Cloud", u: "https://www.huawei.com/-/media/hcomponent-header/1.0.1.20251208095539/component/img/huawei_logo.png" }, 
 
-      // 2. 亚洲 - 其他 (已替换为 HTTPS 链接，或确认兼容)
-      { c: "Singapore", p: "DigitalOcean", s: "", u: "https://speedtest-sgp1.digitalocean.com/100mb.test" },
-      { c: "Japan", p: "Linode", s: "Tokyo", u: "http://speedtest.tokyo2.linode.com/100MB-tokyo2.bin" }, // Linode 某些节点可能只有HTTP，浏览器可能报Mixed Content警告，这是浏览器安全策略
-      { c: "Taiwan", p: "Hinet", s: "Dr.Speed", u: "http://speed.hinet.net/test_100m.zip" }, // Hinet 通常只有HTTP
+      // 3. 亚洲 - 其他
+      { c: "Singapore", p: "DigitalOcean", s: "", u: "https://www.digitalocean.com/_next/static/media/databases-in-action.9065bde5.webp" },
+      { c: "Japan", p: "Linode", s: "Tokyo", u: "https://www.linode.com/linode/en/images/logo/akamai-logo.svg" },
+      { c: "Taiwan", p: "Hinet", s: "Dr.Speed", u: "https://chat123.cht.com.tw/CustomerService/Files/Common/7b339b96-039d-4f9b-8788-00963f4fd0d9.o.png" },
 
-      // 3. 美洲
-      { c: "USA", p: "DigitalOcean", s: "San Francisco", u: "https://speedtest-sfo3.digitalocean.com/100mb.test" },
-      { c: "USA", p: "DigitalOcean", s: "New York", u: "https://speedtest-nyc1.digitalocean.com/100mb.test" },
-      
       // 4. 欧洲
-      { c: "Germany", p: "Hetzner", s: "", u: "https://speed.hetzner.de/100MB.bin" },
-      { c: "UK", p: "DigitalOcean", s: "London", u: "https://speedtest-lon1.digitalocean.com/100mb.test" },
-      { c: "France", p: "Scaleway", s: "Paris", u: "https://ping.online.net/100Mo.dat" },
+      { c: "Germany", p: "Hetzner", s: "", u: "https://cdn.hetzner.com/assets/Uploads/icon-hetzner-cloud.svg" },
+      { c: "France", p: "Scaleway", s: "Paris", u: "https://www.scaleway.com/_next/static/media/logo.7e2996cb.svg" },
     ];
 
     // ==========================================
@@ -375,6 +433,7 @@ function htmlUI(origin) {
 
       const threads = parseInt(slider.value);
       const url = sourceSelect.value;
+      const origin = window.location.origin;
       
       speedInterval = setInterval(() => {
         const now = performance.now();
@@ -399,7 +458,7 @@ function htmlUI(origin) {
 
       const promises = [];
       for (let i = 0; i < threads; i++) {
-        promises.push(downloadThread(url, abortController.signal));
+        promises.push(downloadThread(url, abortController.signal, origin));
       }
 
       try {
@@ -411,40 +470,206 @@ function htmlUI(origin) {
       } catch (err) { }
     }
 
-    // ============================================
-    // 核心修复逻辑：简单请求 + 无限重连
-    // ============================================
-    async function downloadThread(url, signal) {
-      while (isRunning) {
-          // 1. 使用随机参数避开缓存
-          // 2. 不加任何自定义 headers (Cache-Control/Pragma 等)，强制成为"简单请求"，避免 OPTIONS 预检
-          // 3. 加上 referrerPolicy: 'no-referrer' 防止防盗链
-          const fetchUrl = url + (url.includes('?') ? '&' : '?') + 't=' + Math.random();
+    const rangeSupportCache = new Map();
+    const corsStatusCache = new Map();
+    
+    function getProxyUrl(targetUrl, origin) {
+      // 如果是 Worker 自己的接口，不需要代理
+      if (targetUrl.startsWith(origin + '/speed/down')) {
+        return targetUrl;
+      }
+      // 其他 URL 通过代理访问
+      return origin + '/speed/proxy?url=' + encodeURIComponent(targetUrl);
+    }
+    
+    async function tryDirectFetch(url, options) {
+      try {
+        const response = await fetch(url, options);
+        return { success: true, response };
+      } catch (e) {
+        if (e.name === 'TypeError' && e.message.includes('Failed to fetch')) {
+          return { success: false, error: 'CORS' };
+        }
+        return { success: false, error: e };
+      }
+    }
+    
+    async function checkRangeSupport(url, origin) {
+      const cacheKey = url;
+      if (rangeSupportCache.has(cacheKey)) {
+        return rangeSupportCache.get(cacheKey);
+      }
+      
+      try {
+        const testUrl = url + (url.includes('?') ? '&' : '?') + 't=' + Math.random();
+        const abortController = new AbortController();
+        const timeoutId = setTimeout(() => abortController.abort(), 3000);
+        
+        let headResponse;
+        const needsProxy = corsStatusCache.get(cacheKey);
+        
+        if (needsProxy === undefined) {
+          const directResult = await tryDirectFetch(testUrl, {
+            method: 'HEAD',
+            referrerPolicy: 'no-referrer',
+            signal: abortController.signal
+          });
           
-          try {
-            const response = await fetch(fetchUrl, { 
-                signal,
-                referrerPolicy: 'no-referrer' 
+          if (directResult.success) {
+            corsStatusCache.set(cacheKey, false);
+            headResponse = directResult.response;
+          } else {
+            corsStatusCache.set(cacheKey, true);
+            const proxyUrl = getProxyUrl(testUrl, origin);
+            headResponse = await fetch(proxyUrl, {
+              method: 'HEAD',
+              referrerPolicy: 'no-referrer',
+              signal: abortController.signal
             });
+          }
+        } else if (needsProxy) {
+          const proxyUrl = getProxyUrl(testUrl, origin);
+          headResponse = await fetch(proxyUrl, {
+            method: 'HEAD',
+            referrerPolicy: 'no-referrer',
+            signal: abortController.signal
+          });
+        } else {
+          headResponse = await fetch(testUrl, {
+            method: 'HEAD',
+            referrerPolicy: 'no-referrer',
+            signal: abortController.signal
+          });
+        }
+        
+        clearTimeout(timeoutId);
+        
+        const supportsRange = headResponse.headers.get('accept-ranges') === 'bytes' || 
+                              headResponse.headers.get('content-range') !== null;
+        rangeSupportCache.set(cacheKey, supportsRange);
+        return supportsRange;
+      } catch (e) {
+        rangeSupportCache.set(cacheKey, false);
+        return false;
+      }
+    }
+    
+    async function downloadThread(url, signal, origin) {
+      let supportsRange = false;
+      checkRangeSupport(url, origin).then(result => { supportsRange = result; });
+      
+      let downloadedInThread = 0;
+      let rangeStart = 0;
+      let consecutiveErrors = 0;
+      const maxConsecutiveErrors = 5;
+      
+      while (isRunning) {
+          try {
+            const targetUrl = url + (url.includes('?') ? '&' : '?') + 't=' + Math.random();
+            const headers = {};
             
-            // 如果请求失败(404/403/500)，抛出错误并在 catch 中重试
-            if (!response.ok) throw new Error('Net Err');
+            if (supportsRange && rangeStart > 0) {
+              headers['Range'] = 'bytes=' + rangeStart + '-';
+            }
+            
+            const cacheKey = url;
+            const needsProxy = corsStatusCache.get(cacheKey);
+            let response;
+            
+            if (needsProxy === true) {
+              const fetchUrl = getProxyUrl(targetUrl, origin);
+              response = await fetch(fetchUrl, { 
+                signal,
+                referrerPolicy: 'no-referrer',
+                headers: Object.keys(headers).length > 0 ? headers : undefined
+              });
+            } else if (needsProxy === false) {
+              response = await fetch(targetUrl, { 
+                signal,
+                referrerPolicy: 'no-referrer',
+                headers: Object.keys(headers).length > 0 ? headers : undefined
+              });
+            } else {
+              const directResult = await tryDirectFetch(targetUrl, {
+                signal,
+                referrerPolicy: 'no-referrer',
+                headers: Object.keys(headers).length > 0 ? headers : undefined
+              });
+              
+              if (directResult.success) {
+                corsStatusCache.set(cacheKey, false);
+                response = directResult.response;
+              } else {
+                corsStatusCache.set(cacheKey, true);
+                const fetchUrl = getProxyUrl(targetUrl, origin);
+                response = await fetch(fetchUrl, { 
+                  signal,
+                  referrerPolicy: 'no-referrer',
+                  headers: Object.keys(headers).length > 0 ? headers : undefined
+                });
+              }
+            }
+            
+            if (!response.ok) {
+              if (response.status !== 206) {
+                throw new Error('Net Err');
+              }
+            }
+            
+            if (response.headers.get('accept-ranges') === 'bytes') {
+              supportsRange = true;
+              rangeSupportCache.set(url, true);
+            }
             
             const reader = response.body.getReader();
+            let chunkBytes = 0;
             
             while (true) {
               const { done, value } = await reader.read();
-              // 如果读取完成（文件下完了），跳出内部循环，外部 while 会立即发起新请求
-              if (done) break; 
               
+              if (done) {
+                if (supportsRange && response.status === 206) {
+                  rangeStart += chunkBytes;
+                  const contentRange = response.headers.get('content-range');
+                  if (contentRange) {
+                    const lastSlashIndex = contentRange.lastIndexOf('/');
+                    if (lastSlashIndex !== -1) {
+                      const totalSize = parseInt(contentRange.substring(lastSlashIndex + 1));
+                      if (!isNaN(totalSize) && rangeStart >= totalSize) {
+                        rangeStart = 0;
+                      }
+                    }
+                  }
+                }
+                break;
+              }
+              
+              chunkBytes += value.length;
               totalBytes += value.length;
+              downloadedInThread += value.length;
+              
               if (totalBytes >= maxDownloadSize) return;
               if (!isRunning) return;
             }
+            
+            consecutiveErrors = 0;
+            
+            if (!supportsRange || response.status !== 206) {
+              await new Promise(r => setTimeout(r, 50));
+            }
+            
           } catch (e) {
-            // 遇到网络错误或 CORS 阻挡，不退出，稍微等待后重试（死循环）
-            if (!isRunning) return;
-            await new Promise(r => setTimeout(r, 200));
+            consecutiveErrors++;
+            
+            if (consecutiveErrors >= maxConsecutiveErrors) {
+              if (!isRunning) return;
+              await new Promise(r => setTimeout(r, 1000));
+              consecutiveErrors = 0;
+              rangeStart = 0;
+            } else {
+              if (!isRunning) return;
+              await new Promise(r => setTimeout(r, 200));
+            }
           }
       }
     }
